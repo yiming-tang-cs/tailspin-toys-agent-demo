@@ -67,8 +67,29 @@ describe('games data-access helpers', () => {
 
     it('returns other games in the same category ordered by title', async () => {
         await seedGames(db, 3);
+        const [otherCategory] = await db
+            .insert(categories)
+            .values({ name: 'Puzzle', description: 'other category' })
+            .returning({ id: categories.id });
+        const [publisher] = await db
+            .insert(publishers)
+            .values({ name: 'Pub Two', description: 'other publisher' })
+            .returning({ id: publishers.id });
+        await db.insert(games).values({
+            title: 'Different Category Game',
+            description: 'Description',
+            starRating: 4.2,
+            categoryId: otherCategory.id,
+            publisherId: publisher.id,
+        });
+
         const all = await getAllGames(db);
-        const related = await getRelatedGames(db, all[1].category?.id ?? null, all[1].id);
+        const currentGame = all.find((game) => game.title === 'Game 02');
+        const related = await getRelatedGames(
+            db,
+            currentGame?.category?.id ?? null,
+            currentGame?.id ?? -1,
+        );
 
         expect(related.map((game) => game.title)).toEqual(['Game 01', 'Game 03']);
     });
