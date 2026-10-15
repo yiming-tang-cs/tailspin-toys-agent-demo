@@ -6,6 +6,7 @@ import {
     getAllGames,
     getAllGameIds,
     getGameById,
+    getRelatedGames,
 } from './games';
 
 async function seedGames(db: Database, count: number): Promise<void> {
@@ -62,5 +63,24 @@ describe('games data-access helpers', () => {
     it('returns null for a non-existent game', async () => {
         await seedGames(db, 2);
         expect(await getGameById(db, 99999)).toBeNull();
+    });
+
+    it('returns other games in the same category ordered by title', async () => {
+        await seedGames(db, 3);
+        const all = await getAllGames(db);
+        const related = await getRelatedGames(db, all[1].category?.id ?? null, all[1].id);
+
+        expect(related.map((game) => game.title)).toEqual(['Game 01', 'Game 03']);
+    });
+
+    it('returns no related games when there are no other games in the category', async () => {
+        await seedGames(db, 1);
+        const [game] = await getAllGames(db);
+
+        expect(await getRelatedGames(db, game.category?.id ?? null, game.id)).toEqual([]);
+    });
+
+    it('returns no related games when the category id is null', async () => {
+        expect(await getRelatedGames(db, null, 1)).toEqual([]);
     });
 });

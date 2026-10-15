@@ -8,7 +8,8 @@ import Button from '../../components/Button.astro';
 import ArrowLeft from '../../assets/icons/arrow-left.svg';
 import Heart from '../../assets/icons/heart.svg';
 import { getDatabase } from '../../lib/db';
-import { getAllGameIds, getGameById } from '../../lib/games';
+import { getAllGameIds, getGameById, getRelatedGames } from '../../lib/games';
+import GameCard from '../../components/GameCard.astro';
 
 export const prerender = true;
 
@@ -23,6 +24,12 @@ const game = await getGameById(getDatabase(), Number(id));
 if (!game) {
     return Astro.redirect('/404');
 }
+
+const relatedGames = await getRelatedGames(
+    getDatabase(),
+    game.category?.id ?? null,
+    game.id,
+);
 ---
 
 <Layout title="Game Details - Tailspin Toys">
@@ -63,6 +70,15 @@ if (!game) {
         </div>
       </div>
     </Card>
+
+    {relatedGames.length > 0 && (
+      <section class="mt-10" aria-labelledby="related-games-heading" data-testid="related-games">
+        <h2 id="related-games-heading" class="text-2xl font-bold text-slate-100 mb-4">Related Games</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {relatedGames.map((relatedGame) => <GameCard game={relatedGame} />)}
+        </div>
+      </section>
+    )}
 
     <div class="mt-8">
       <Button href="/" size="sm">
