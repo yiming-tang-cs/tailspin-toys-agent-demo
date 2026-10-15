@@ -6,6 +6,7 @@ import {
     getAllGames,
     getAllGameIds,
     getGameById,
+    getRelatedGames,
 } from './games';
 
 async function seedGames(db: Database, count: number): Promise<void> {
@@ -62,5 +63,45 @@ describe('games data-access helpers', () => {
     it('returns null for a non-existent game', async () => {
         await seedGames(db, 2);
         expect(await getGameById(db, 99999)).toBeNull();
+    });
+
+    it('returns other games in the same category ordered by title', async () => {
+        await seedGames(db, 3);
+        const [otherCategory] = await db
+            .insert(categories)
+            .values({ name: 'Puzzle', description: 'other category' })
+            .returning({ id: categories.id });
+        const [publisher] = await db
+            .insert(publishers)
+            .values({ name: 'Pub Two', description: 'other publisher' })
+            .returning({ id: publishers.id });
+        await db.insert(games).values({
+            title: 'Different Category Game',
+            description: 'Description',
+            starRating: 4.2,
+            categoryId: otherCategory.id,
+            publisherId: publisher.id,
+        });
+
+        const all = await getAllGames(db);
+        const currentGame = all.find((game) => game.title === 'Game 02');
+        const related = await getRelatedGames(
+            db,
+            currentGame?.category?.id ?? null,
+            currentGame?.id ?? -1,
+        );
+
+        expect(related.map((game) => game.title)).toEqual(['Game 01', 'Game 03']);
+    });
+
+    it('returns no related games when there are no other games in the category', async () => {
+        await seedGames(db, 1);
+        const [game] = await getAllGames(db);
+
+        expect(await getRelatedGames(db, game.category?.id ?? null, game.id)).toEqual([]);
+    });
+
+    it('returns no related games when the category id is null', async () => {
+        expect(await getRelatedGames(db, null, 1)).toEqual([]);
     });
 });
